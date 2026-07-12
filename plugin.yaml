@@ -1,0 +1,44 @@
+name: route6
+version: 0.1.0
+description: "Route6 (route6.me) — give your agent a real public IPv6 identity, DNS hostname, port forwarding, web fetch/search/scrape from a clean IP, and a private team mesh with coordination tools. All Route6 MCP tools auto-discovered from gw.route6.me; bundled usage skill (route6:route6). Free tier available."
+author: Route6
+kind: standalone
+requires_env:
+  - name: ROUTE6_API_KEY
+    description: "Route6 API key — create a free account (no card) and copy the key from the dashboard"
+    url: "https://route6.me"
+    secret: true
+optional_env:
+  - name: ROUTE6_GATEWAY_URL
+    description: "Override the Route6 MCP gateway URL (default: https://gw.route6.me/mcp)"
+  - name: ROUTE6_TOOL_TIMEOUT
+    description: "Per-tool-call timeout in seconds (default: 120)"
+provides_tools:
+  - hostname_register
+  - identity_check_reputation
+  - identity_get
+  - identity_set_ipv6
+  - net_dns_resolve
+  - net_ping
+  - net_traceroute
+  - plan_upgrade
+  - port_forward_create
+  - port_forward_delete
+  - port_forward_list
+  - port_forward_tls
+  - scrape
+  - smtp_allowlist
+  - team_capability
+  - team_chat
+  - team_events
+  - team_loop
+  - team_metrics
+  - team_ping
+  - team_project_task
+  - team_roles
+  - team_status
+  - team_task
+  - team_whiteboard
+  - web_browse
+  - web_fetch
+  - web_search

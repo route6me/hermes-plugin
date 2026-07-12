@@ -1,0 +1,991 @@
+{
+ "tools": [
+  {
+   "name": "identity_get",
+   "description": "Get your current internet identity: active IPv6, /64 prefix and all addresses in it, tunnel IP, hostname, and IPv4 exit.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "identity_set_ipv6",
+   "description": "Set or rotate your public IPv6 address within your /64. Omit address to rotate to a random address (replaces identity_rotate_ipv6). Provide address to pin to a specific one.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "address": {
+      "type": "string",
+      "description": "IPv6 address within your /64. Omit to rotate to a random unused address."
+     }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "identity_check_reputation",
+   "description": "Check if your current IP address is on any spam or abuse blocklists (DNSBL check).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "ip": {
+      "type": "string",
+      "description": "IP to check (defaults to your active IPv6)"
+     }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "hostname_register",
+   "description": "Register or update your *.on.route6.me hostname. Creates AAAA + PTR DNS records. Omit name to release (delete) your current hostname.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 32,
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "description": "Subdomain (e.g. \"mybot\" \u2192 mybot.on.route6.me). Omit to release current hostname."
+     }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "net_ping",
+   "description": "Ping a host from your Route6 identity. Works for both IPv4 and IPv6 destinations (DNS64 handles IPv4).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "host": {
+      "type": "string",
+      "description": "Hostname or IP address"
+     },
+     "count": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 4,
+      "description": "Number of pings"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "net_traceroute",
+   "description": "Traceroute from your Route6 identity to a host.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "host": {
+      "type": "string",
+      "description": "Hostname or IP address"
+     }
+    },
+    "required": [
+     "host"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "net_dns_resolve",
+   "description": "Resolve a hostname via DNS64. Shows real AAAA records and synthesized NAT64 addresses for IPv4-only hosts.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "hostname": {
+      "type": "string",
+      "description": "Hostname to resolve"
+     },
+     "record_type": {
+      "type": "string",
+      "enum": [
+       "A",
+       "AAAA",
+       "MX",
+       "TXT",
+       "NS",
+       "CNAME"
+      ],
+      "default": "AAAA"
+     }
+    },
+    "required": [
+     "hostname"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "port_forward_create",
+   "description": "Expose a host-machine port to the internet via your agent's public IPv6. Add ttl_seconds for a temporary forward that auto-expires (max 86400). Omit for persistent.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "external_port": {
+      "type": "number",
+      "minimum": 1024,
+      "maximum": 65535,
+      "description": "Public port on your agent IPv6 (1024-65535)"
+     },
+     "internal_port": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Port on the host machine (defaults to external_port)"
+     },
+     "protocol": {
+      "type": "string",
+      "enum": [
+       "tcp",
+       "udp"
+      ],
+      "default": "tcp"
+     },
+     "ttl_seconds": {
+      "type": "number",
+      "minimum": 60,
+      "maximum": 86400,
+      "description": "Auto-expire after N seconds (max 86400). Omit for persistent."
+     },
+     "description": {
+      "type": "string",
+      "description": "Label for your reference"
+     }
+    },
+    "required": [
+     "external_port"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "port_forward_list",
+   "description": "Show all active port forwards with socat status.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "port_forward_delete",
+   "description": "Remove a port forward and kill the socat process.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "external_port": {
+      "type": "number",
+      "description": "External port to remove"
+     }
+    },
+    "required": [
+     "external_port"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "port_forward_tls",
+   "description": "Enable or disable Route6-managed TLS termination on a TCP port forward. Enable uses the *.on.route6.me wildcard cert \u2014 clients connect with HTTPS, socat decrypts and forwards plain TCP. Requires a registered hostname.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "port": {
+      "type": "number",
+      "description": "External port to configure TLS on"
+     },
+     "action": {
+      "type": "string",
+      "enum": [
+       "enable",
+       "disable"
+      ],
+      "description": "Enable or disable TLS termination"
+     }
+    },
+    "required": [
+     "port",
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "smtp_allowlist",
+   "description": "Manage your SMTP allowlist \u2014 add, list, or remove mail server destinations. SMTP is blocked by default; allowlisted hosts enable outbound email on port 25/465/587.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "add",
+       "list",
+       "remove"
+      ],
+      "description": "\"add\" or \"remove\" an entry, or \"list\" all entries"
+     },
+     "address": {
+      "type": "string",
+      "description": "Mail server hostname or email domain (required for add/remove)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "web_fetch",
+   "description": "Fetch a URL through your Route6 IPv6 identity. Add screenshot:true to return a base64 PNG screenshot instead of content (paid).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to fetch"
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "GET",
+       "POST",
+       "PUT",
+       "DELETE",
+       "HEAD"
+      ],
+      "default": "GET"
+     },
+     "headers": {
+      "type": "object",
+      "additionalProperties": {
+       "type": "string"
+      },
+      "description": "Custom HTTP headers"
+     },
+     "body": {
+      "type": "string",
+      "description": "Request body (for POST/PUT)"
+     },
+     "max_length": {
+      "type": "number",
+      "default": 50000,
+      "description": "Max response chars"
+     },
+     "render_js": {
+      "type": "boolean",
+      "description": "Render JavaScript via headless browser (paid)"
+     },
+     "screenshot": {
+      "type": "boolean",
+      "description": "Return a base64 PNG screenshot instead of content (paid)"
+     }
+    },
+    "required": [
+     "url"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "web_search",
+   "description": "Search the web using Route6 infrastructure via SearXNG.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "Search query"
+     },
+     "num_results": {
+      "type": "number",
+      "default": 10,
+      "description": "Number of results (max 50)"
+     },
+     "language": {
+      "type": "string",
+      "default": "en",
+      "description": "Language code"
+     },
+     "categories": {
+      "type": "string",
+      "description": "Categories: general, images, news, science, files"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "web_browse",
+   "description": "Interactive browser session via Playwright. Navigate, click, type, scroll, extract content.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Starting URL"
+     },
+     "actions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "action": {
+         "type": "string",
+         "enum": [
+          "click",
+          "type",
+          "scroll",
+          "extract",
+          "wait",
+          "navigate"
+         ]
+        },
+        "selector": {
+         "type": "string"
+        },
+        "text": {
+         "type": "string"
+        },
+        "direction": {
+         "type": "string",
+         "enum": [
+          "up",
+          "down"
+         ]
+        },
+        "amount": {
+         "type": "number"
+        },
+        "url": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "action"
+       ],
+       "additionalProperties": false
+      },
+      "description": "Ordered list of browser actions"
+     }
+    },
+    "required": [
+     "url",
+     "actions"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "scrape",
+   "description": "Scrape structured content from a URL, or manage scraper credits. Provide url to extract content. Provide action to check balance or purchase credits.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to scrape (mutually exclusive with action)"
+     },
+     "selector": {
+      "type": "string",
+      "description": "CSS selector for targeted extraction (used with url)"
+     },
+     "action": {
+      "type": "string",
+      "enum": [
+       "balance",
+       "topup"
+      ],
+      "description": "\"balance\" to check credits, \"topup\" to purchase (mutually exclusive with url)"
+     },
+     "pack": {
+      "type": "string",
+      "enum": [
+       "starter",
+       "pro",
+       "agency"
+      ],
+      "description": "Credit pack to purchase (required when action=topup)"
+     }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "plan_upgrade",
+   "description": "Get a Stripe checkout URL to upgrade your Route6 plan.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_status",
+   "description": "Mesh health summary plus full peer list \u2014 peer addresses, hostnames, and online status. Replaces separate mesh_status and mesh_discover.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_ping",
+   "description": "Ping another agent in your mesh to verify connectivity.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "peer": {
+      "type": "string",
+      "description": "Peer tunnel IPv6 address (fd00:baba:deda::XXXX) or hostname"
+     }
+    },
+    "required": [
+     "peer"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_chat",
+   "description": "Send or receive broadcast messages to/from all agents in your team mesh. For structured typed work with results, use team_task instead.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "send",
+       "get"
+      ],
+      "description": "\"send\" to broadcast a message, \"get\" to read recent messages"
+     },
+     "message": {
+      "type": "string",
+      "maxLength": 65536,
+      "description": "Chat message to broadcast (required for action=send)"
+     },
+     "since": {
+      "type": "string",
+      "description": "ISO timestamp \u2014 only return messages after this time (action=get)"
+     },
+     "limit": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 500,
+      "description": "Max messages to return, default 100 (action=get)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_whiteboard",
+   "description": "Read, write, or list the shared team whiteboard \u2014 a persistent key-value store for notes, plans, and structured artifacts visible to all team agents. Keys are namespaced: team:<key> (shared), agent:<id>:<key> (private), task:<task_id>:<key> (task-scoped).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "set",
+       "get",
+       "list"
+      ],
+      "description": "\"set\" to write, \"get\" to read, \"list\" to browse keys"
+     },
+     "key": {
+      "type": "string",
+      "description": "Namespaced key (required for set/get)"
+     },
+     "value": {
+      "type": "string",
+      "description": "Value to store (required for set, max 256KB)"
+     },
+     "supersedes": {
+      "type": "string",
+      "description": "ETag of the version this replaces (set only)"
+     },
+     "etag": {
+      "type": "string",
+      "description": "Retrieve a specific version by ETag (get only)"
+     },
+     "prefix": {
+      "type": "string",
+      "description": "Filter keys by prefix (list only)"
+     },
+     "namespace": {
+      "type": "string",
+      "enum": [
+       "agent",
+       "team",
+       "task"
+      ],
+      "description": "Filter by namespace (list only)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_capability",
+   "description": "Register, renew, list, or deprecate agent capabilities for team task routing. Agents register what they can do; coordinators discover available workers via list.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "register",
+       "renew",
+       "list",
+       "deprecate"
+      ],
+      "description": "Operation to perform"
+     },
+     "name": {
+      "type": "string",
+      "description": "Capability name, e.g. \"web_scrape\" (register)"
+     },
+     "version": {
+      "type": "string",
+      "description": "SemVer version, e.g. \"1.0.0\" (register)"
+     },
+     "input_schema": {
+      "type": "object",
+      "additionalProperties": {},
+      "description": "JSON Schema for task payloads (register)"
+     },
+     "output_schema": {
+      "type": "object",
+      "additionalProperties": {},
+      "description": "JSON Schema for results (register)"
+     },
+     "example": {
+      "type": "string",
+      "description": "One-line example payload (register)"
+     },
+     "latency_hint_ms": {
+      "type": "number",
+      "description": "Typical completion time in ms, used for routing (register)"
+     },
+     "ttl_seconds": {
+      "type": "number",
+      "minimum": 60,
+      "maximum": 3600,
+      "description": "Registration lifetime, default 300 (register/renew)"
+     },
+     "capability_id": {
+      "type": "string",
+      "description": "ID from register (renew/deprecate)"
+     },
+     "query": {
+      "type": "string",
+      "description": "Filter by name substring (list)"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "alive",
+       "deprecated",
+       "all"
+      ],
+      "description": "Filter by status, default \"alive\" (list)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_task",
+   "description": "Submit, claim, complete, or manage async tasks routed to capable agents. Uses a claim/ACK model: workers poll for tasks, hold a lease, and ack with results. Crashed workers release tasks automatically on claim expiry.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "submit",
+       "poll",
+       "ack",
+       "result",
+       "renew",
+       "cancel"
+      ],
+      "description": "Operation to perform"
+     },
+     "capability_ref": {
+      "type": "string",
+      "description": "\"name@version\" e.g. \"web_scrape@1.0.0\" (submit/poll)"
+     },
+     "payload": {
+      "type": "string",
+      "description": "Task input, validated against capability input_schema (submit)"
+     },
+     "result_schema": {
+      "type": "object",
+      "additionalProperties": {},
+      "description": "Expected output schema override (submit)"
+     },
+     "ttl_seconds": {
+      "type": "number",
+      "minimum": 60,
+      "maximum": 86400,
+      "description": "Task lifetime before expiry, default 3600 (submit)"
+     },
+     "priority": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Priority 1-10, higher polled first, default 5 (submit)"
+     },
+     "claim_ttl_seconds": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 600,
+      "description": "Claim hold time in seconds, default 60 (poll)"
+     },
+     "max_tasks": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Max tasks to claim in one call, default 1 (poll)"
+     },
+     "task_id": {
+      "type": "string",
+      "description": "Task ID (ack/result/renew/cancel)"
+     },
+     "claim_token": {
+      "type": "string",
+      "description": "Token from poll (ack/renew)"
+     },
+     "result": {
+      "type": "string",
+      "description": "Task output (ack)"
+     },
+     "extend_seconds": {
+      "type": "number",
+      "minimum": 10,
+      "maximum": 600,
+      "description": "Additional claim seconds (renew)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_events",
+   "description": "Query the team event log for auditing, debugging, and workflow replay. Events include whiteboard writes, capability registrations, and task lifecycle transitions.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "since": {
+      "type": "string",
+      "description": "ISO timestamp start of range (default: last 15 min)"
+     },
+     "until": {
+      "type": "string",
+      "description": "ISO timestamp end of range"
+     },
+     "event_type": {
+      "type": "string",
+      "description": "Filter: kv_write, capability_register, capability_expire, task_submit, task_claim, task_complete, task_fail, task_expire, task_cancel"
+     },
+     "task_id": {
+      "type": "string",
+      "description": "Filter to a specific task full lifecycle"
+     },
+     "agent_id": {
+      "type": "number",
+      "description": "Filter to events from a specific agent"
+     },
+     "limit": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 1000,
+      "description": "Max events, default 100"
+     }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_metrics",
+   "description": "Snapshot of team task queue depth, inflight tasks, and per-capability latency and worker stats. Use before team_task submit to pick the best capability or check worker availability.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_loop",
+   "description": "Enter a continuous receive loop over your team's channels (chat, whiteboard, tasks, project tasks). start \u2192 returns a loop_id and protocol instructions; poll \u2192 long-polls server-side (~45s) and returns new team activity the moment it happens, plus instructions to handle it and poll again; stop \u2192 exit the loop. Lets teammates and other agents continuously push work to you through Route6. Auto-ends after max_idle_cycles consecutive empty polls (default 40 \u2248 30 min at the default hold) or max_duration_seconds (default 7200).",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "start",
+       "poll",
+       "stop",
+       "status"
+      ],
+      "description": "\"start\" a loop, \"poll\" for new activity (blocking), \"stop\" the loop, \"status\" to list your recent loops"
+     },
+     "loop_id": {
+      "type": "string",
+      "description": "Loop ID from start (required for poll/stop)"
+     },
+     "hold_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50,
+      "description": "Max server-side block time per poll, default 45. Lower it if your MCP client times out"
+     },
+     "cursor": {
+      "type": "string",
+      "description": "Opaque cursor from a previous response \u2014 pass to re-deliver from that point (poll only, normally omit)"
+     },
+     "max_idle_cycles": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Auto-end after this many consecutive empty polls, default 40 (start only)"
+     },
+     "max_duration_seconds": {
+      "type": "number",
+      "minimum": 60,
+      "maximum": 28800,
+      "description": "Auto-end after this many seconds total, default 7200 (start only)"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_project_task",
+   "description": "Create, update, or list project tasks for your team. Tasks are human-visible with a full lifecycle: pending_approval \u2192 open \u2192 in_progress \u2192 blocked \u2192 resolution_proposal \u2192 resolved. Agent-submitted tasks require human approval by default (unless auto_approve is on). Use action=create to submit work, action=update to move status or add notes, action=list to see what needs attention.",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "create",
+       "update",
+       "list"
+      ],
+      "description": "\"create\" a new task or sub-task, \"update\" status/notes on existing task, \"list\" tasks by status"
+     },
+     "name": {
+      "type": "string",
+      "description": "Task title \u2014 required for action=create"
+     },
+     "description": {
+      "type": "string",
+      "description": "Full description of what needs to be done (create)"
+     },
+     "parent_task_id": {
+      "type": "integer",
+      "description": "Numeric id of parent task to create a sub-task (max 1 level deep)"
+     },
+     "task_id": {
+      "type": "string",
+      "description": "task_id string from create or list response \u2014 required for action=update"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "in_progress",
+       "blocked",
+       "resolution_proposal"
+      ],
+      "description": "New lifecycle status \u2014 agents may set these three values (update)"
+     },
+     "note": {
+      "type": "string",
+      "description": "Short note recorded in task history (update)"
+     },
+     "blocked_reason": {
+      "type": "string",
+      "description": "Why progress is blocked \u2014 include when status=blocked (update)"
+     },
+     "resolution_notes": {
+      "type": "string",
+      "description": "What was done to solve the issue \u2014 include when status=resolution_proposal (update)"
+     },
+     "test_results": {
+      "type": "string",
+      "description": "Test output or pass/fail summary proving resolution \u2014 include when status=resolution_proposal (update)"
+     },
+     "status_filter": {
+      "type": "string",
+      "enum": [
+       "pending_approval",
+       "open",
+       "in_progress",
+       "blocked",
+       "resolution_proposal",
+       "resolved",
+       "rejected",
+       "all"
+      ],
+      "description": "Filter by status (list). Omit to return all non-resolved tasks."
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  },
+  {
+   "name": "team_roles",
+   "description": "List current role assignments for your team. Use this to discover who is the Project Manager, Code Reviewer, etc. Returns each role with its description and assigned agent hostname (or null if unassigned). Roles are assigned by humans via the web dashboard.",
+   "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {}
+   },
+   "execution": {
+    "taskSupport": "forbidden"
+   }
+  }
+ ]
+}
