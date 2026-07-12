@@ -71,29 +71,51 @@ def _make_handler(tool_name: str):
     return handler
 
 
+def _register_one(ctx, name: str, description: str, parameters: dict, gateway_name: str) -> None:
+    ctx.register_tool(
+        name=name,
+        toolset=_TOOLSET,
+        schema={"name": name, "description": description, "parameters": parameters},
+        handler=_make_handler(gateway_name),
+        check_fn=_check_available,
+        requires_env=["ROUTE6_API_KEY"],
+        emoji=_EMOJI,
+    )
+
+
 def register(ctx) -> None:
     for tool in _discover_tools():
         name = tool["name"]
-        schema = {
-            "name": name,
-            "description": tool.get("description", ""),
-            "parameters": tool.get("inputSchema") or {"type": "object", "properties": {}},
-        }
-        ctx.register_tool(
-            name=name,
-            toolset=_TOOLSET,
-            schema=schema,
-            handler=_make_handler(name),
-            check_fn=_check_available,
-            requires_env=["ROUTE6_API_KEY"],
-            emoji=_EMOJI,
-        )
+        description = tool.get("description", "")
+        parameters = tool.get("inputSchema") or {"type": "object", "properties": {}}
+        try:
+            _register_one(ctx, name, description, parameters, gateway_name=name)
+        except Exception:
+            # Name shadows a built-in tool (e.g. Hermes' own web_search).
+            # Re-register under a route6_ prefix — the handler still calls
+            # the gateway by the ORIGINAL name. Never let one tool (or the
+            # skill) abort plugin load / session startup.
+            alias = f"route6_{name}"
+            try:
+                _register_one(
+                    ctx, alias,
+                    f"{description} (Route6's {name} — prefixed because a "
+                    f"built-in tool already uses that name; this one runs "
+                    f"through your Route6 network identity.)",
+                    parameters, gateway_name=name,
+                )
+                logger.info("route6: %s shadows a built-in tool; registered as %s", name, alias)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("route6: could not register tool %s: %s", name, e)
 
-    skill_md = _PLUGIN_DIR / "skills" / "route6" / "SKILL.md"
-    if skill_md.exists():
-        ctx.register_skill(
-            "route6",
-            skill_md,
-            description="How to use Route6 network tools: identity, hostname, "
-            "port forwarding, web fetch/search/scrape, team mesh coordination.",
-        )
+    try:
+        skill_md = _PLUGIN_DIR / "skills" / "route6" / "SKILL.md"
+        if skill_md.exists():
+            ctx.register_skill(
+                "route6",
+                skill_md,
+                description="How to use Route6 network tools: identity, hostname, "
+                "port forwarding, web fetch/search/scrape, team mesh coordination.",
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("route6: skill registration failed: %s", e)
