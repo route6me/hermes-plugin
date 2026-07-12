@@ -33,6 +33,12 @@ _SNAPSHOT = _PLUGIN_DIR / "tools_snapshot.json"
 _TOOLSET = "route6"
 _EMOJI = "🌐"
 
+# Hermes built-ins we must never name-collide with. Registration order differs
+# between Hermes processes (dashboard loads built-ins before plugins, the
+# gateway loads plugins first) — if we win the race under the bare name, the
+# BUILT-IN gets rejected instead of us. Always register these prefixed.
+_ALWAYS_PREFIX = {"web_search", "web_fetch", "scrape", "web_browse"}
+
 _client: Route6MCP | None = None
 
 
@@ -88,6 +94,19 @@ def register(ctx) -> None:
         name = tool["name"]
         description = tool.get("description", "")
         parameters = tool.get("inputSchema") or {"type": "object", "properties": {}}
+        if name in _ALWAYS_PREFIX:
+            alias = f"route6_{name}"
+            try:
+                _register_one(
+                    ctx, alias,
+                    f"{description} (Route6's {name} — prefixed so it never "
+                    f"collides with the built-in tool of the same name; this "
+                    f"one runs through your Route6 network identity.)",
+                    parameters, gateway_name=name,
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning("route6: could not register tool %s: %s", alias, e)
+            continue
         try:
             _register_one(ctx, name, description, parameters, gateway_name=name)
         except Exception:
