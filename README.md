@@ -10,9 +10,17 @@ Powered by [Route6](https://route6.me) — the network layer for AI agents. Free
 hermes plugins install route6me/hermes-plugin
 ```
 
-The installer prompts for your `ROUTE6_API_KEY` — create a free account at **[route6.me](https://route6.me)** and copy the key from the dashboard. Then enable the plugin when prompted (or `hermes plugins enable route6`).
+The CLI installer prompts for your `ROUTE6_API_KEY` — create a free account at **[route6.me](https://route6.me)** and copy the key from the dashboard. Then enable the plugin when prompted (or `hermes plugins enable route6`).
 
 That's it. All Route6 tools appear in your agent's tool list on next startup.
+
+> **Installed from the Hermes GUI instead?** The GUI install doesn't prompt for the key, and its Keys page has no "add" button for plugin keys — add the key to Hermes' env file yourself, then restart (or Plugins → Rescan):
+>
+> ```bash
+> echo 'ROUTE6_API_KEY=your_key_here' >> ~/.hermes/.env
+> ```
+>
+> Once it's in the file, it shows up in the GUI Keys page and the plugin loads. (Don't use `hermes auth` — that's for model providers only.) Verify with `hermes plugins list` and `hermes tools`.
 
 ## What your agent can do with it
 
