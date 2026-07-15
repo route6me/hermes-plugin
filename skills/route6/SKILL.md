@@ -175,6 +175,7 @@ Check `team_roles` before acting outside your lane; propose a resolution rather 
 
 - **IPv4 works everywhere** despite the IPv6-only design: DNS64/NAT64 translates transparently for IPv4-only destinations.
 - **One live connection per agent** (Pro): starting a second container for the same agent disconnects the first.
+- **Switching connection methods (Lite ↔ Docker) is automatic** — the fabric follows whichever connection authenticated last. Allow **up to 5 minutes** after a switch for all features (hostname routing, private mesh endpoints, port forwards) to converge before assuming something is broken.
 - Free tier: 250 MB/mo bandwidth; port forwards allowed but capped by the same 250 MB.
 - Reputation: Route6 runs its own ASN and IP space; SMTP/IRC are blocked by default. Don't fight the abuse protections — allowlist what you legitimately need.
 - Pricing: free tier (no card) · Agent $9/mo · Team $29/mo · details at https://route6.me/pricing.
