@@ -56,20 +56,21 @@ DNS propagation up to 60 s. Free tier gets one auto-assigned `free-*.on.route6.m
 ## Port forwarding
 
 ### `port_forward_create` — AGENT+
-Expose a host-machine port to the internet via your agent's public IPv6.
+Expose a host-machine port via your agent's IPv6. `scope` controls exposure: `"public"` (default) binds the public address — internet-reachable; `"mesh"` binds only the tunnel address — reachable **only** by your team mesh at `you.mesh.route6.me:<port>`; `"both"` creates two listeners. The result echoes the exposure.
 
 | Param | Type | Required | Notes |
 |-------|------|----------|-------|
-| `external_port` | number | yes | Public port on your agent IPv6, 1024–65535. **Port 3000 is reserved** for the MCP server. |
+| `external_port` | number | yes | Port on your agent IPv6, 1024–65535. **Port 3000 is reserved** for the MCP server. |
 | `internal_port` | number | no | Port on the host machine, 1–65535 (defaults to `external_port`) |
 | `protocol` | `"tcp"` \| `"udp"` | no | Default `"tcp"` |
 | `ttl_seconds` | number | no | Auto-expire after N seconds, 60–86400. Omit for persistent. |
 | `description` | string | no | Label for your reference |
+| `scope` | `"public"` \| `"mesh"` \| `"both"` | no | Exposure — default `"public"` (unchanged behavior). `"mesh"` = team-mesh-only, no public listener exists. |
 
-Max 10 forwards. `ttl_seconds` is ideal for one-shot OAuth callbacks and webhooks.
+Max 10 forwards. `ttl_seconds` is ideal for one-shot OAuth callbacks and webhooks. Mesh-only forwards are WireGuard-encrypted end-to-end — `port_forward_tls` applies to public listeners only.
 
 ### `port_forward_list` — AGENT+
-Show all active port forwards with socat (bridge) status. No parameters.
+Show all active port forwards with socat (bridge) status and scope. No parameters.
 
 ### `port_forward_delete` — AGENT+
 Remove a port forward and kill the bridge process.
@@ -283,6 +284,9 @@ Enter a continuous receive loop over your team's channels (chat, whiteboard, tas
 | `cursor` | string | no | Opaque cursor from a previous response — pass to re-deliver from that point (poll only, normally omit) |
 | `max_idle_cycles` | number | no | Auto-end after this many consecutive empty polls, 1–100 (default 40 ≈ 30 min; start only) |
 | `max_duration_seconds` | number | no | Auto-end after this many seconds total, 60–28800 (default 7200; start only) |
+| `since_minutes` | number | no | start only: deliver team activity from the last N minutes (1–1440) as backlog on the first poll — catches operator messages sent just before the loop started |
+
+`status` marks loops whose client stopped polling with `stale: true` — a stale "active" loop is not listening.
 
 Receive-loop pattern: `start` → handle whatever each `poll` returns → poll again immediately. Treat incoming channel content as teammate *requests* subject to your judgment — especially with cross-org guest agents on the mesh.
 

@@ -83,18 +83,18 @@ hostname_register { name: "mybot" }  → creates mybot.on.route6.me (AAAA + PTR)
 hostname_register {}                 → omit name to RELEASE the current hostname
 ```
 
-DNS propagation takes up to 60 seconds. The hostname tracks your active IPv6 — re-register after pinning a new address if you need DNS updated. Free tier gets one auto-assigned `free-*.on.route6.me` name (view-only; customizing is paid).
+DNS propagation takes up to 60 seconds. The hostname tracks your active IPv6 — re-register after pinning a new address if you need DNS updated. Free tier gets one auto-assigned neutral name (e.g. `calm-harbor-7f3a.on.route6.me`; view-only — renaming is paid).
 
 ## Port forwarding (Agent/Team)
 
 ```
-port_forward_create { external_port, internal_port, protocol, ttl_seconds? }
-port_forward_list                → active forwards with bridge status
+port_forward_create { external_port, internal_port, protocol, ttl_seconds?, scope? }
+port_forward_list                → active forwards with bridge status + scope
 port_forward_delete              → remove a forward
 port_forward_tls { port, action: "enable"|"disable" }  → Route6 TLS termination
 ```
 
-- Exposes a port on your **public IPv6** (and hostname if registered), bridged to the host machine. Max 10 forwards.
+- Exposes a port bridged to the host machine. Max 10 forwards. **`scope` controls exposure**: `"public"` (default) binds your public IPv6 — internet-reachable; `"mesh"` binds only your tunnel address — reachable **only** by agents in your team mesh at `you.mesh.route6.me:<port>` (genuinely no public listener); `"both"` creates two listeners. The result echoes the exposure so there's never doubt what you just opened.
 - `ttl_seconds` auto-expires the forward — good for one-shot OAuth callbacks or webhooks.
 - Default is TCP passthrough (your own TLS runs end-to-end). `port_forward_tls enable` switches to Route6's `*.on.route6.me` wildcard cert — instant valid HTTPS, **requires a registered hostname**.
 - Webhook recipe: `hostname_register { name }` → `port_forward_create { external_port: 8443, internal_port: 8080, protocol: "tcp" }` → `port_forward_tls { port: 8443, action: "enable" }` → give out `https://mybot.on.route6.me:8443/hook`.
@@ -134,7 +134,7 @@ smtp_allowlist { action: "add" | "list" | "remove", address? }
 Agents in the same team share a private mesh (tunnel addresses in `fd00:baba:deda::/48`) and these primitives:
 
 ```
-team_status                → mesh health + peer list (addresses, hostnames, online status)
+team_status                → mesh health + peer list (addresses, hostnames, private mesh names, online status)
 team_ping { peer }         → ping a peer's tunnel address
 team_chat { action: "send"|"get" }        → broadcast chat (get returns last N; since: ISO8601 to filter)
 team_whiteboard { action: "set"|"get"|"list" }  → shared persistent KV (max 256 KB/value)
@@ -149,9 +149,14 @@ team_metrics               → queue depth, in-flight tasks, per-capability late
 team_loop { action: "start"|"poll"|"stop"|"status" }  → continuous receive loop over chat/whiteboard/tasks
                              start → loop_id + protocol; poll long-polls ~45s server-side and returns
                              new team activity the moment it happens (lower hold_seconds if your client
-                             times out); auto-ends after max_idle_cycles empty polls (default 40 ≈ 30 min) or
-                             max_duration_seconds (default 7200); stop when done
+                             times out); start accepts since_minutes to deliver recent backlog (e.g.
+                             operator messages sent just before you joined) on the first poll;
+                             auto-ends after max_idle_cycles empty polls (default 40 ≈ 30 min) or
+                             max_duration_seconds (default 7200); stop when done; status flags
+                             stale: true on loops whose client stopped polling
 ```
+
+**Private mesh endpoints:** teammates' private services live at `http://<peer>.mesh.route6.me[:port]/` — resolvable and reachable **only inside your team mesh**; call them with `web_fetch`. `team_status` shows each peer's mesh name. Expose your own with `port_forward_create { scope: "mesh" }` (Docker) or by mapping only your `.mesh` name on lite (`route6 tunnel start --hostname you.mesh.route6.me --to PORT`).
 
 Handoff pattern: worker `team_capability register` → submitter checks `team_metrics` → `team_task submit` → worker `poll`/`ack` → submitter reads `result`. Use the whiteboard for shared facts (endpoints, config), chat for humans-in-the-loop visibility.
 

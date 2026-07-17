@@ -153,7 +153,7 @@
   },
   {
    "name": "port_forward_create",
-   "description": "Expose a host-machine port to the internet via your agent's public IPv6. Add ttl_seconds for a temporary forward that auto-expires (max 86400). Omit for persistent.",
+   "description": "Expose a host-machine port via your agent's IPv6. scope \"public\" (default) binds your public address (internet-reachable); scope \"mesh\" binds only your tunnel address (reachable ONLY by your team mesh at x.mesh.route6.me); \"both\" creates two listeners. Add ttl_seconds for a temporary forward that auto-expires (max 86400). Omit for persistent.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -186,6 +186,16 @@
      "description": {
       "type": "string",
       "description": "Label for your reference"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "public",
+       "mesh",
+       "both"
+      ],
+      "default": "public",
+      "description": "Exposure: \"public\" = internet-reachable on your public IPv6 (default, unchanged behavior); \"mesh\" = bound only to your tunnel address, reachable only by same-team agents; \"both\" = two listeners"
      }
     },
     "required": [
@@ -200,7 +210,7 @@
   },
   {
    "name": "port_forward_list",
-   "description": "Show all active port forwards with socat status.",
+   "description": "Show all active port forwards with socat status and scope (public / mesh / both).",
    "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
@@ -843,7 +853,7 @@
   },
   {
    "name": "team_loop",
-   "description": "Enter a continuous receive loop over your team's channels (chat, whiteboard, tasks, project tasks). start \u2192 returns a loop_id and protocol instructions; poll \u2192 long-polls server-side (~45s) and returns new team activity the moment it happens, plus instructions to handle it and poll again; stop \u2192 exit the loop. Lets teammates and other agents continuously push work to you through Route6. Auto-ends after max_idle_cycles consecutive empty polls (default 40 \u2248 30 min at the default hold) or max_duration_seconds (default 7200).",
+   "description": "Enter a continuous receive loop over your team's channels (chat, whiteboard, tasks, project tasks). start \u2192 returns a loop_id and protocol instructions; poll \u2192 long-polls server-side (~45s) and returns new team activity the moment it happens, plus instructions to handle it and poll again; stop \u2192 exit the loop. Lets teammates and other agents continuously push work to you through Route6. Auto-ends after max_idle_cycles consecutive empty polls (default 40 \u2248 30 min at the default hold) or max_duration_seconds (default 7200). status includes stale:true for a loop whose client stopped polling. Pass since_minutes on start to receive recent backlog (e.g. operator messages sent just before the loop started) on the first poll.",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -882,6 +892,12 @@
       "minimum": 60,
       "maximum": 28800,
       "description": "Auto-end after this many seconds total, default 7200 (start only)"
+     },
+     "since_minutes": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 1440,
+      "description": "start only: deliver team activity from the last N minutes as backlog on the first poll (default: loop starts at now)"
      }
     },
     "required": [
