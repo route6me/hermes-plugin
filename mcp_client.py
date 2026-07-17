@@ -29,7 +29,9 @@ SETUP_TIMEOUT = 10
 
 
 class Route6MCPError(Exception):
-    pass
+    def __init__(self, message: str, http_status: int | None = None):
+        super().__init__(message)
+        self.http_status = http_status
 
 
 class Route6MCP:
@@ -78,7 +80,18 @@ class Route6MCP:
             msg = self._post(method, params, timeout)
         except Route6MCPError as e:
             # One transparent retry on session loss (gateway restart/expiry).
-            if "session" not in str(e).lower():
+            # Recoverable shapes: HTTP 404 "Session not found" (spec-compliant
+            # gateways), any "session"-worded error, and the SDK's HTTP 400
+            # "Server not initialized" (what a stale session id produced before
+            # the gateway returned 404 — kept so the plugin also self-heals
+            # against older/other MCP servers).
+            lower = str(e).lower()
+            recoverable = (
+                e.http_status == 404
+                or "session" in lower
+                or "not initialized" in lower
+            )
+            if not recoverable:
                 raise
             with self._lock:
                 self._session_id = None
@@ -101,7 +114,7 @@ class Route6MCP:
                     "params": {
                         "protocolVersion": PROTOCOL_VERSION,
                         "capabilities": {},
-                        "clientInfo": {"name": "hermes-route6-plugin", "version": "0.1.0"},
+                        "clientInfo": {"name": "hermes-route6-plugin", "version": "0.1.4"},
                     },
                 },
                 timeout=SETUP_TIMEOUT,
@@ -148,7 +161,7 @@ class Route6MCP:
                     "Route6 rejected the API key (401). Check ROUTE6_API_KEY — "
                     "get a key at https://route6.me"
                 ) from None
-            raise Route6MCPError(f"gateway HTTP {e.code}: {detail}") from None
+            raise Route6MCPError(f"gateway HTTP {e.code}: {detail}", http_status=e.code) from None
         except urllib.error.URLError as e:
             raise Route6MCPError(f"cannot reach Route6 gateway {self._url}: {e.reason}") from None
 
