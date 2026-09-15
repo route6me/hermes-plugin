@@ -1,9 +1,9 @@
 """Route6 plugin for Hermes Agent — https://route6.me
 
 Gives the agent a real public IPv6 identity, DNS hostname, port
-forwarding, outbound web tools (fetch/search/browse/scrape), and — on
-Team plans — a private mesh with coordination tools (chat, whiteboard,
-task queue, roles).
+forwarding and webhook URLs, outbound web tools (fetch/search/browse/scrape),
+and a private mesh with coordination tools (chat, whiteboard, task queue,
+roles) — every tool on every plan, including Free.
 
 This plugin is a thin dynamic proxy: at startup it asks the Route6
 gateway (``gw.route6.me/mcp``) for its current tool list and registers

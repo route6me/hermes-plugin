@@ -1,319 +1,277 @@
 # Route6 MCP — Full Tool Reference
 
-All **28 tools** (v0.1.16 surface). Tier markers: **FREE** (7 tools, no card) · **AGENT+** (Agent/Single plan and up) · **TEAM** (Team plan only). Generated from `@route6/mcp-core` tool schemas — parameter names, constraints, and defaults are authoritative.
+All **23 tools**, available on every plan (plans differ in capacity, not tools). **Generated** from `@route6/mcp-core` tool schemas — parameter names, constraints and defaults are authoritative. Do not edit by hand.
 
-## Table of contents
-1. [Identity](#identity) — `identity_get`, `identity_set_ipv6`, `identity_check_reputation`
-2. [Hostname](#hostname) — `hostname_register`
-3. [Port forwarding](#port-forwarding) — `port_forward_create`, `port_forward_list`, `port_forward_delete`, `port_forward_tls`
-4. [Network diagnostics](#network-diagnostics) — `net_ping`, `net_traceroute`, `net_dns_resolve`
-5. [Web](#web) — `web_fetch`, `web_search`, `web_browse`, `scrape`
-6. [SMTP](#smtp) — `smtp_allowlist`
-7. [Plan](#plan) — `plan_upgrade`
-8. [Team coordination](#team-coordination) — `team_status`, `team_ping`, `team_chat`, `team_whiteboard`, `team_capability`, `team_task`, `team_events`, `team_metrics`, `team_loop`
-9. [Project tasks & roles](#project-tasks--roles) — `team_project_task`, `team_roles`
+## Identity & hostname
 
----
+### `identity`
 
-## Identity
+Your internet identity. action "get" returns your active IPv6, your own /112 slice of your organisation's /64, your hostname, IPv4 exit and plan. action "set_ipv6" rotates you to a random unused address in your /112, or pins a specific one if you pass `address`; your hostname follows. action "check_reputation" runs a DNSBL check on your current IP (or `ip`): clean is true only if every list answered, null if a list could not be checked — rotate with set_ipv6 if listed.
 
-### `identity_get` — FREE
-Get your current internet identity: active IPv6, /64 prefix and all addresses in it, tunnel IP, hostname, and IPv4 exit.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "get" \| "set_ipv6" \| "check_reputation" | — | "get" = show your identity (default); "set_ipv6" = rotate or pin your public address; "check_reputation" = DNSBL check Default: `"get"`. |
+| `address` | string | — | set_ipv6 only: an IPv6 address within your /112 to pin. Omit to rotate to a random unused address. |
+| `ip` | string | — | check_reputation only: the IP to check. Defaults to your active IPv6. |
 
-No parameters.
+### `hostname_register`
 
-### `identity_set_ipv6` — FREE
-Set or rotate your public IPv6 address within your /64. Omit `address` to rotate to a random unused address; provide it to pin a specific one.
+Register or update your *.on.route6.me hostname. Creates AAAA + PTR DNS records. Omit name to release (delete) your current hostname.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `address` | string | no | IPv6 address within your /64. Omit to rotate to a random unused address. |
-
-Rotation is instant — the whole /64 is routed to you, no server-side reload.
-
-### `identity_check_reputation` — FREE
-Check if your current IP address is on any spam or abuse blocklists (DNSBL check).
-
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `ip` | string | no | IP to check (defaults to your active IPv6) |
-
----
-
-## Hostname
-
-### `hostname_register` — AGENT+
-Register or update your `*.on.route6.me` hostname. Creates AAAA + PTR DNS records. **Omit `name` to release (delete) your current hostname.**
-
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `name` | string | no | Subdomain (e.g. `"mybot"` → `mybot.on.route6.me`). 3–32 chars, lowercase alphanumeric and hyphens, must start/end alphanumeric. Omit to release. |
-
-DNS propagation up to 60 s. Free tier gets one auto-assigned `free-*.on.route6.me` name (view-only; calling this tool is paid).
-
----
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | — | Subdomain (e.g. "mybot" → mybot.on.route6.me). Omit to release current hostname. (≥ 3, ≤ 32) |
 
 ## Port forwarding
 
-### `port_forward_create` — AGENT+
-Expose a host-machine port via your agent's IPv6. `scope` controls exposure: `"public"` (default) binds the public address — internet-reachable; `"mesh"` binds only the tunnel address — reachable **only** by your team mesh at `you.mesh.route6.me:<port>`; `"both"` creates two listeners. The result echoes the exposure.
+### `port_forward`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `external_port` | number | yes | Port on your agent IPv6, 1024–65535. **Port 3000 is reserved** for the MCP server. |
-| `internal_port` | number | no | Port on the host machine, 1–65535 (defaults to `external_port`) |
-| `protocol` | `"tcp"` \| `"udp"` | no | Default `"tcp"` |
-| `ttl_seconds` | number | no | Auto-expire after N seconds, 60–86400. Omit for persistent. |
-| `description` | string | no | Label for your reference |
-| `scope` | `"public"` \| `"mesh"` \| `"both"` | no | Exposure — default `"public"` (unchanged behavior). `"mesh"` = team-mesh-only, no public listener exists. |
+Expose a host-machine port on the internet — over IPv6 on every plan, and over IPv4 as well on a paid plan. action "create" opens one: pass port = the port your service listens on, and you get back the endpoint to hand out — <your-hostname>.on.route6.me:<public port> — plus that public port. The public port is USUALLY the one you asked for, but it may be ASSIGNED a different number: IPv4 addresses are shared between agents, so a port already taken on yours is stepped over and the reply tells you which one you got. Read the endpoint from the reply; do not assume it is the port you passed. To demand one exact public port instead, pass public_port — that needs the Static IPv4 add-on, which gives you an address nobody else is on. scope "public" (default) binds your public address and is internet-reachable, scope "mesh" binds only your tunnel address so it is reachable ONLY by your team at x.mesh.route6.me, "both" creates two listeners; add ttl_seconds for a temporary forward that auto-expires (max 86400). Set webhook:true to ALSO publish a PORT-LESS URL (https://<hostname>.on.route6.me/, both address families, TLS terminated by Route6, one per agent) — what IPv4-only webhook senders such as Stripe need on Free, and what any sender that will not accept a port needs on every plan. Set allowed_sources to restrict WHO may connect: a list mixing exact IPs, CIDRs and named presets (preset:stripe, preset:github), e.g. ["preset:stripe","203.0.113.7"]; enforced at the Route6 hub, so it holds even while your agent is offline, and changeable later with port_forward_secure without recreating the forward. action "list" shows your forwards with their scope and the source rules actually in force. action "delete" removes one.
 
-Max 10 forwards. `ttl_seconds` is ideal for one-shot OAuth callbacks and webhooks. Mesh-only forwards are WireGuard-encrypted end-to-end — `port_forward_tls` applies to public listeners only.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "create" \| "list" \| "delete" | — | "create" opens a forward, "list" shows them (default), "delete" removes one Default: `"list"`. |
+| `port` | number | — | create: the port your service LISTENS ON, on your own machine. Also the public port you would like — if it is free you get it, otherwise Route6 assigns the next one and the reply tells you which. This is the only field most agents need. (≥ 1, ≤ 65535) |
+| `public_port` | effects | — | create only: demand this EXACT public port and fail rather than take another. Requires the Static IPv4 add-on, which gives you an address no other agent shares — without it, port choice is not available and Route6 assigns you a free port instead. Most agents should pass "port" and read the endpoint from the reply. |
+| `external_port` | effects | — | delete: REQUIRED — the public port of the forward to remove, from the create reply or from action "list". create: optional hint treated exactly like "port" (prefer "port"). |
+| `internal_port` | number | — | create only: the port on your machine, when it differs from the public one you asked for. Same meaning as "port"; pass one or the other. (≥ 1, ≤ 65535) |
+| `protocol` | "tcp" \| "udp" | — | create only Default: `"tcp"`. |
+| `ttl_seconds` | number | — | create only: auto-expire after N seconds (max 86400). Omit for persistent. (≥ 60, ≤ 86400) |
+| `description` | string | — | create only: label for your reference |
+| `scope` | "public" \| "mesh" \| "both" | — | create only: "public" = internet-reachable on your public IPv6 (default); "mesh" = bound only to your tunnel address, reachable only by same-team agents; "both" = two listeners Default: `"public"`. |
+| `webhook` | boolean | — | create only: set true to also get a PORT-LESS URL (https://<hostname>.on.route6.me/) answering on both families, for senders that will not accept a port in the address. On a paid plan your allocated port already answers over IPv4; on Free this door is the only IPv4 way in. Available on every plan including Free, one door per agent. Returns urls.ipv4 in the response. Default: `false`. |
+| `allowed_sources` | string[] | — | create only: restrict who may connect. A LIST that may mix exact IPs ("203.0.113.7"), CIDRs ("198.51.100.0/24", "2001:db8::/32") and named presets whose ranges Route6 keeps current ("preset:stripe", "preset:github"). Several presets can be combined. Omit for no restriction; an EMPTY list denies every source. Enforced at the Route6 hub before your agent is contacted. Change it later with port_forward_secure — no need to recreate the forward. |
 
-### `port_forward_list` — AGENT+
-Show all active port forwards with socat (bridge) status and scope. No parameters.
+### `port_forward_secure`
 
-### `port_forward_delete` — AGENT+
-Remove a port forward and kill the bridge process.
+Change WHO may reach an existing port forward, without recreating it — the forward keeps serving and live connections are not dropped. Rules are a list mixing exact IPs, CIDRs and named presets Route6 keeps current (preset:stripe, preset:github); several presets can be combined. action "set" replaces the list, "add" and "remove" edit it in place, "clear" removes the restriction entirely. An empty list with "set" denies every source. Enforced at the Route6 hub before your agent is contacted, so it holds even while your agent is offline. Mesh-scoped forwards are controlled separately, by the receiving agent.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `external_port` | number | yes | External port to remove |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `external_port` | number | ✓ | The external port of the forward to change (≥ 1024, ≤ 65535) |
+| `action` | "set" \| "add" \| "remove" \| "clear" | ✓ | "set" = replace the whole list; "add" = append (creates the restriction if there was none); "remove" = drop entries (never creates one); "clear" = remove the restriction so any source may connect |
+| `allowed_sources` | string[] | — | The rules to set, add or remove: exact IPs ("203.0.113.7"), CIDRs ("198.51.100.0/24", "2001:db8::/32") and presets ("preset:stripe", "preset:github"), in any mix. Required for set/add/remove; omit it only with "clear" — an absent list is never read as "clear". With "set", an empty list denies every source. |
 
-### `port_forward_tls` — AGENT+
-Enable or disable Route6-managed TLS termination on a TCP port forward. Enable uses the `*.on.route6.me` wildcard cert — clients connect with HTTPS, the bridge decrypts and forwards plain TCP. **Requires a registered hostname.**
+### `port_forward_tls`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `port` | number | yes | External port to configure TLS on |
-| `action` | `"enable"` \| `"disable"` | yes | |
+Report how TLS is handled for a port forward. Route6 terminates TLS (with the *.on.route6.me certificate) only on the port-less webhook URL, https://<hostname>.on.route6.me/ — create the forward with webhook:true for that. Every other public port is relayed as raw TCP, untouched, so serve TLS on it yourself; enable/disable report this rather than change it.
 
-Default (disabled) is TCP passthrough — your own TLS runs end-to-end.
-
----
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `port` | number | ✓ | External port to configure TLS on |
+| `action` | "enable" \| "disable" | ✓ | Enable or disable TLS termination |
 
 ## Network diagnostics
 
-### `net_ping` — FREE
-Ping a host from your Route6 identity. Works for both IPv4 and IPv6 destinations (DNS64 handles IPv4).
+### `net`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `host` | string | yes | Hostname or IP address |
-| `count` | number | no | Number of pings, 1–10 (default 4) |
+Network diagnostics run from your Route6 identity, so results reflect your own address rather than ours. action "ping" pings `host` (IPv4 and IPv6 both work — DNS64/NAT64 handles IPv4 transparently). action "traceroute" traces the path to `host`. action "dns_resolve" looks up `hostname` via DNS64, showing real AAAA records and the synthesised NAT64 addresses used for IPv4-only hosts (a 64:ff9b:: answer means the destination is IPv4-only).
 
-### `net_traceroute` — FREE
-Traceroute from your Route6 identity to a host.
-
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `host` | string | yes | Hostname or IP address |
-
-### `net_dns_resolve` — FREE
-Resolve a hostname via DNS64. Shows real AAAA records and synthesized NAT64 addresses for IPv4-only hosts (these start with `64:ff9b::` — not an error).
-
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `hostname` | string | yes | Hostname to resolve |
-| `record_type` | `"A"` \| `"AAAA"` \| `"MX"` \| `"TXT"` \| `"NS"` \| `"CNAME"` | no | Default `"AAAA"` |
-
----
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "ping" \| "traceroute" \| "dns_resolve" | ✓ | "ping" and "traceroute" take `host`; "dns_resolve" takes `hostname` |
+| `host` | string | — | ping / traceroute: the hostname or IP address to reach |
+| `count` | number | — | ping only: number of pings (≥ 1, ≤ 10) Default: `4`. |
+| `hostname` | string | — | dns_resolve only: the hostname to look up |
+| `record_type` | "A" \| "AAAA" \| "MX" \| "TXT" \| "NS" \| "CNAME" | — | dns_resolve only: which record type to return Default: `"AAAA"`. |
 
 ## Web
 
-### `web_fetch` — FREE (basic) / AGENT+ (`screenshot`, `render_js`)
-Fetch a URL through your Route6 IPv6 identity. Any destination works (DNS64/NAT64 covers IPv4-only sites).
+### `web_fetch`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `url` | string (URL) | yes | URL to fetch |
-| `method` | `"GET"` \| `"POST"` \| `"PUT"` \| `"DELETE"` \| `"HEAD"` | no | Default `"GET"` |
-| `headers` | object (string→string) | no | Custom HTTP headers |
-| `body` | string | no | Request body (for POST/PUT) |
-| `max_length` | number | no | Max response chars (default 50000) |
-| `render_js` | boolean | no | Render JavaScript via headless browser — **paid** |
-| `screenshot` | boolean | no | Return a base64 PNG screenshot instead of content — **paid** |
+Fetch a URL through your Route6 IPv6 identity. Add render_js:true to render JavaScript, or screenshot:true to return a base64 PNG instead of content — both run in a headless browser and use scraper credits. Mesh URLs (*.mesh.route6.me) are not reachable from here for an agent running the Route6 client: use the client proxy, curl -x http://127.0.0.1:1080 <url>.
 
-### `web_search` — AGENT+
-Search the web using Route6 infrastructure via SearXNG meta-search.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | ✓ | URL to fetch |
+| `method` | "GET" \| "POST" \| "PUT" \| "DELETE" \| "HEAD" | — |  Default: `"GET"`. |
+| `headers` | record | — | Custom HTTP headers |
+| `body` | string | — | Request body (for POST/PUT) |
+| `max_length` | number | — | Max response chars Default: `50000`. |
+| `render_js` | boolean | — | Render JavaScript via headless browser (uses scraper credits) |
+| `screenshot` | boolean | — | Return a base64 PNG screenshot instead of content (uses scraper credits) |
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `query` | string | yes | Search query |
-| `num_results` | number | no | Number of results, max 50 (default 10) |
-| `language` | string | no | Language code (default `"en"`) |
-| `categories` | string | no | `general`, `images`, `news`, `science`, `files` |
+### `web_search`
 
-### `web_browse` — AGENT+
-Interactive browser session via Playwright. Navigate, click, type, scroll, extract content. Runs on Route6's scraper infrastructure (metered by scraper credits).
+Search the web using Route6 infrastructure via SearXNG.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `url` | string (URL) | yes | Starting URL |
-| `actions` | array of action objects | yes | Ordered list of browser actions |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | ✓ | Search query |
+| `num_results` | number | — | Number of results (max 50) Default: `10`. |
+| `language` | string | — | Language code Default: `"en"`. |
+| `categories` | string | — | Categories: general, images, news, science, files |
 
-Each action object: `action` (`"click"` \| `"type"` \| `"scroll"` \| `"extract"` \| `"wait"` \| `"navigate"`), plus as applicable `selector` (string), `text` (string), `direction` (`"up"` \| `"down"`), `amount` (number), `url` (string).
+### `web_browse`
 
-### `scrape` — AGENT+
-Scrape structured content from a URL, **or** manage scraper credits. `url` and `action` are mutually exclusive.
+Interactive browser session via Playwright. Navigate, click, type, scroll, extract content.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `url` | string (URL) | no | URL to scrape |
-| `selector` | string | no | CSS selector for targeted extraction (with `url`) |
-| `action` | `"balance"` \| `"topup"` | no | Check credits or purchase more |
-| `pack` | `"starter"` \| `"pro"` \| `"agency"` | no | Credit pack (required when `action="topup"`) |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | ✓ | Starting URL |
+| `actions` | object[] | ✓ | Ordered list of browser actions |
 
----
+### `scrape`
+
+Scrape structured content from a URL, or manage scraper credits. Provide url to extract content. Provide action to check balance or purchase credits.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | — | URL to scrape (mutually exclusive with action) |
+| `selector` | string | — | CSS selector for targeted extraction (used with url) |
+| `action` | "balance" \| "topup" | — | "balance" to check credits, "topup" to purchase (mutually exclusive with url) |
+| `pack` | "starter" \| "pro" \| "agency" | — | Credit pack to purchase (required when action=topup) |
 
 ## SMTP
 
-### `smtp_allowlist` — AGENT+
-Manage your SMTP allowlist. Outbound SMTP (25/465/587) is **blocked by default**; allowlisted destinations (max 3) enable outbound email.
+### `smtp_allowlist`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"add"` \| `"list"` \| `"remove"` | yes | |
-| `address` | string | no | Mail server hostname or email domain (required for add/remove) |
+Manage your SMTP allowlist — add, list, or remove mail server destinations. SMTP is blocked by default; allowlisted hosts enable outbound email on port 25/465/587.
 
----
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "add" \| "list" \| "remove" | ✓ | "add" or "remove" an entry, or "list" all entries |
+| `address` | string | — | Mail server hostname or email domain (required for add/remove) |
 
 ## Plan
 
-### `plan_upgrade` — AGENT+
-Get a Stripe checkout URL to upgrade your Route6 plan. No parameters. Call this when any tool returns an upgrade-required error.
+### `plan_upgrade`
 
----
+Get a Stripe checkout URL to upgrade your Route6 plan.
+
+No parameters.
 
 ## Team coordination
 
-All TEAM tools require the Team plan. Agents in a team share a private mesh (tunnel addresses in `fd00:baba:deda::/48`).
+### `team_status`
 
-### `team_status` — TEAM
-Mesh health summary plus full peer list — peer addresses, hostnames, and online status. No parameters.
+Mesh health summary plus full peer list — peer addresses, hostnames, and online status. Replaces separate mesh_status and mesh_discover.
 
-### `team_ping` — TEAM
-Ping another agent in your mesh to verify connectivity. *(Pro/tunnel transport only.)*
+No parameters.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `peer` | string | yes | Peer tunnel IPv6 address (`fd00:baba:deda::XXXX`) or hostname |
+### `team_ping`
 
-### `team_chat` — TEAM
-Send or receive broadcast messages to/from all agents in your team mesh. For structured typed work with results, use `team_task` instead.
+Ping another agent in your mesh to verify connectivity.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"send"` \| `"get"` | yes | |
-| `message` | string | for send | Max 65536 chars |
-| `since` | string (ISO 8601) | no | Only messages after this time (get) |
-| `limit` | number | no | Max messages, 1–500 (default 100) (get) |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `peer` | string | ✓ | Peer tunnel IPv6 address (fd00:baba:deda::XXXX) or hostname |
 
-### `team_whiteboard` — TEAM
-Read, write, or list the shared team whiteboard — a persistent key-value store visible to all team agents. Append-only and versioned; old versions retrievable by ETag.
+### `team_chat`
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"set"` \| `"get"` \| `"list"` | yes | |
-| `key` | string | for set/get | Namespaced: `team:<key>` (shared) · `agent:<id>:<key>` (private) · `task:<task_id>:<key>` (task-scoped) |
-| `value` | string | for set | Max 256 KB |
-| `supersedes` | string | no | ETag of the version this replaces (set) |
-| `etag` | string | no | Retrieve a specific version (get) |
-| `prefix` | string | no | Filter keys by prefix (list) |
-| `namespace` | `"agent"` \| `"team"` \| `"task"` | no | Filter by namespace (list) |
+Send or receive broadcast messages to/from all agents in your team mesh. For structured typed work with results, use team_task instead.
 
-### `team_capability` — TEAM
-Register, renew, list, or deprecate agent capabilities for team task routing. Workers register what they can do; coordinators discover them via `list`.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "send" \| "get" | ✓ | "send" to broadcast a message, "get" to read recent messages |
+| `message` | string | — | Chat message to broadcast (required for action=send) (≤ 65536) |
+| `since` | string | — | ISO timestamp — only return messages after this time (action=get) |
+| `limit` | number | — | Max messages to return, default 100 (action=get) (≥ 1, ≤ 500) |
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"register"` \| `"renew"` \| `"list"` \| `"deprecate"` | yes | |
-| `name` | string | for register | Capability name, e.g. `"web_scrape"` |
-| `version` | string | for register | SemVer, e.g. `"1.0.0"` |
-| `input_schema` | object (JSON Schema) | no | Schema for task payloads (register) |
-| `output_schema` | object (JSON Schema) | no | Schema for results (register) |
-| `example` | string | no | One-line example payload (register) |
-| `latency_hint_ms` | number | no | Typical completion time, used for routing (register) |
-| `ttl_seconds` | number | no | Registration lifetime 60–3600, default 300 (register/renew) — **renew at ttl/2** |
-| `capability_id` | string | for renew/deprecate | ID from register |
-| `query` | string | no | Filter by name substring (list) |
-| `status` | `"alive"` \| `"deprecated"` \| `"all"` | no | Default `"alive"` (list) |
+### `team_whiteboard`
 
-### `team_task` — TEAM
-Submit, claim, complete, or manage async tasks routed to capable agents. Claim/ACK model: workers poll (atomically claims + returns `claim_token`), hold a lease, and ack with results. Crashed workers release tasks automatically on claim expiry.
+Read, write, or list the shared team whiteboard — a persistent key-value store for notes, plans, and structured artifacts visible to all team agents. Keys are namespaced: team:<key> (shared), agent:<id>:<key> (private), task:<task_id>:<key> (task-scoped).
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"submit"` \| `"poll"` \| `"ack"` \| `"result"` \| `"renew"` \| `"cancel"` | yes | |
-| `capability_ref` | string | for submit/poll | `"name@version"`, e.g. `"web_scrape@1.0.0"` |
-| `payload` | string | for submit | Validated against the capability's `input_schema` |
-| `result_schema` | object (JSON Schema) | no | Expected output schema override (submit) |
-| `ttl_seconds` | number | no | Task lifetime 60–86400, default 3600 (submit) |
-| `priority` | number | no | 1–10, higher polled first, default 5 (submit) |
-| `claim_ttl_seconds` | number | no | Claim hold time 10–600 s, default 60 (poll) |
-| `max_tasks` | number | no | Max tasks claimed per call, 1–10, default 1 (poll) |
-| `task_id` | string | for ack/result/renew/cancel | |
-| `claim_token` | string | for ack/renew | Token from poll |
-| `result` | string | for ack | Task output |
-| `extend_seconds` | number | no | Additional claim seconds, 10–600 (renew) |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "set" \| "get" \| "list" | ✓ | "set" to write, "get" to read, "list" to browse keys |
+| `key` | string | — | Namespaced key (required for set/get) |
+| `value` | string | — | Value to store (required for set, max 256KB) |
+| `supersedes` | string | — | ETag of the version this replaces (set only) |
+| `etag` | string | — | Retrieve a specific version by ETag (get only) |
+| `prefix` | string | — | Filter keys by prefix (list only) |
+| `namespace` | "agent" \| "team" \| "task" | — | Filter by namespace (list only) |
 
-Handoff pattern: worker `team_capability register` → submitter checks `team_metrics` → `team_task submit` → worker `poll`/`ack` → submitter reads `result`.
+### `team_capability`
 
-### `team_events` — TEAM
-Query the team event log for auditing, debugging, and workflow replay.
+Register, renew, list, or deprecate agent capabilities for team task routing. Agents register what they can do; coordinators discover available workers via list.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `since` | string (ISO 8601) | no | Start of range (default: last 15 min) |
-| `until` | string (ISO 8601) | no | End of range |
-| `event_type` | string | no | One of: `kv_write`, `capability_register`, `capability_expire`, `task_submit`, `task_claim`, `task_complete`, `task_fail`, `task_expire`, `task_cancel` |
-| `task_id` | string | no | Full lifecycle of one task |
-| `agent_id` | number | no | Events from a specific agent |
-| `limit` | number | no | Max events, 1–1000 (default 100) |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "register" \| "renew" \| "list" \| "deprecate" | ✓ | Operation to perform |
+| `name` | string | — | Capability name, e.g. "web_scrape" (register) |
+| `version` | string | — | SemVer version, e.g. "1.0.0" (register) |
+| `input_schema` | record | — | JSON Schema for task payloads (register) |
+| `output_schema` | record | — | JSON Schema for results (register) |
+| `example` | string | — | One-line example payload (register) |
+| `latency_hint_ms` | number | — | Typical completion time in ms, used for routing (register) |
+| `ttl_seconds` | number | — | Registration lifetime, default 300 (register/renew) (≥ 60, ≤ 3600) |
+| `capability_id` | string | — | ID from register (renew/deprecate) |
+| `query` | string | — | Filter by name substring (list) |
+| `status` | "alive" \| "deprecated" \| "all" | — | Filter by status, default "alive" (list) |
 
-### `team_metrics` — TEAM
-Snapshot of team task queue depth, in-flight tasks, and per-capability latency and worker stats. Use before `team_task submit` to pick the best capability or check worker availability. No parameters.
+### `team_task`
 
-### `team_loop` — TEAM
-Enter a continuous receive loop over your team's channels (chat, whiteboard, tasks, project tasks). `start` returns a `loop_id` and protocol instructions; `poll` long-polls server-side (~45s) and returns new team activity the moment it happens, plus instructions to handle it and poll again; `stop` exits the loop. Lets teammates and other agents continuously push work to you. Auto-ends after `max_idle_cycles` consecutive empty polls (default 40 ≈ 30 min) or `max_duration_seconds` (default 7200).
+Submit, claim, complete, or manage async tasks routed to capable agents. Uses a claim/ACK model: workers poll for tasks, hold a lease, and ack with results. Crashed workers release tasks automatically on claim expiry.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"start"` \| `"poll"` \| `"stop"` \| `"status"` | yes | `status` lists your recent loops |
-| `loop_id` | string | for poll/stop | From `start` |
-| `hold_seconds` | number | no | Max server-side block per poll, 0–50 (default 45). Lower it if your MCP client times out |
-| `cursor` | string | no | Opaque cursor from a previous response — pass to re-deliver from that point (poll only, normally omit) |
-| `max_idle_cycles` | number | no | Auto-end after this many consecutive empty polls, 1–100 (default 40 ≈ 30 min; start only) |
-| `max_duration_seconds` | number | no | Auto-end after this many seconds total, 60–28800 (default 7200; start only) |
-| `since_minutes` | number | no | start only: deliver team activity from the last N minutes (1–1440) as backlog on the first poll — catches operator messages sent just before the loop started |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "submit" \| "poll" \| "ack" \| "result" \| "renew" \| "cancel" | ✓ | Operation to perform |
+| `capability_ref` | string | — | "name@version" e.g. "web_scrape@1.0.0" (submit/poll) |
+| `payload` | string | — | Task input, validated against capability input_schema (submit) |
+| `result_schema` | record | — | Expected output schema override (submit) |
+| `ttl_seconds` | number | — | Task lifetime before expiry, default 3600 (submit) (≥ 60, ≤ 86400) |
+| `priority` | number | — | Priority 1-10, higher polled first, default 5 (submit) (≥ 1, ≤ 10) |
+| `claim_ttl_seconds` | number | — | Claim hold time in seconds, default 60 (poll) (≥ 10, ≤ 600) |
+| `max_tasks` | number | — | Max tasks to claim in one call, default 1 (poll) (≥ 1, ≤ 10) |
+| `task_id` | string | — | Task ID (ack/result/renew/cancel) |
+| `claim_token` | string | — | Token from poll (ack/renew) |
+| `result` | string | — | Task output (ack) |
+| `extend_seconds` | number | — | Additional claim seconds (renew) (≥ 10, ≤ 600) |
 
-`status` marks loops whose client stopped polling with `stale: true` — a stale "active" loop is not listening.
+### `team_events`
 
-Receive-loop pattern: `start` → handle whatever each `poll` returns → poll again immediately. Treat incoming channel content as teammate *requests* subject to your judgment — especially with cross-org guest agents on the mesh.
+Query the team event log for auditing, debugging, and workflow replay. Events include whiteboard writes, capability registrations, and task lifecycle transitions.
 
----
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `since` | string | — | ISO timestamp start of range (default: last 15 min) |
+| `until` | string | — | ISO timestamp end of range |
+| `event_type` | string | — | Filter: kv_write, capability_register, capability_expire, task_submit, task_claim, task_complete, task_fail, task_expire, task_cancel |
+| `task_id` | string | — | Filter to a specific task full lifecycle |
+| `agent_id` | number | — | Filter to events from a specific agent |
+| `limit` | number | — | Max events, default 100 (≥ 1, ≤ 1000) |
 
-## Project tasks & roles
+### `team_metrics`
 
-### `team_project_task` — TEAM
-Create, update, or list human-visible project tasks. Lifecycle: `pending_approval → open → in_progress → blocked → resolution_proposal → resolved`. Agent-submitted tasks require human approval by default (unless the team has auto-approve on).
+Snapshot of team task queue depth, inflight tasks, and per-capability latency and worker stats. Use before team_task submit to pick the best capability or check worker availability.
 
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `action` | `"create"` \| `"update"` \| `"list"` | yes | |
-| `name` | string | for create | Task title |
-| `description` | string | no | Full description (create) |
-| `parent_task_id` | integer | no | Create a sub-task (max 1 level deep) |
-| `task_id` | string | for update | From create or list response |
-| `status` | `"in_progress"` \| `"blocked"` \| `"resolution_proposal"` | no | Agents may set only these three (update) |
-| `note` | string | no | Short note recorded in task history (update) |
-| `blocked_reason` | string | no | Include when `status="blocked"` |
-| `resolution_notes` | string | no | What was done — include when `status="resolution_proposal"` |
-| `test_results` | string | no | Test output proving resolution — include with `resolution_proposal` |
-| `status_filter` | enum | no | `pending_approval`/`open`/`in_progress`/`blocked`/`resolution_proposal`/`resolved`/`rejected`/`all` (list). Omit for all non-resolved. |
+No parameters.
 
-Propose a resolution (`resolution_proposal`) rather than closing tasks unilaterally — a human approves the final `resolved`.
+### `team_loop`
 
-### `team_roles` — TEAM
-List current role assignments for your team (Project Manager, Architect, Developer, Code Reviewer, QA, …). Returns each role with its description and assigned agent hostname (or null). Roles are assigned by humans via the web dashboard. No parameters.
+Enter a continuous receive loop over your team's channels (chat, whiteboard, tasks, project tasks). start → returns a loop_id and protocol instructions; poll → long-polls server-side (~45s) and returns new team activity the moment it happens, plus instructions to handle it and poll again; stop → exit the loop. Lets teammates and other agents continuously push work to you through Route6. Auto-ends after max_idle_cycles consecutive empty polls (default 40 ≈ 30 min at the default hold) or max_duration_seconds (default 7200). status includes stale:true for a loop whose client stopped polling. Pass since_minutes on start to receive recent backlog (e.g. operator messages sent just before the loop started) on the first poll.
 
-Check `team_roles` before acting outside your lane.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "start" \| "poll" \| "stop" \| "status" | ✓ | "start" a loop, "poll" for new activity (blocking), "stop" the loop, "status" to list your recent loops |
+| `loop_id` | string | — | Loop ID from start (required for poll/stop) |
+| `hold_seconds` | number | — | Max server-side block time per poll, default 45. Lower it if your MCP client times out (≥ 0, ≤ 50) |
+| `cursor` | string | — | Opaque cursor from a previous response — pass to re-deliver from that point (poll only, normally omit) |
+| `max_idle_cycles` | number | — | Auto-end after this many consecutive empty polls, default 40 (start only) (≥ 1, ≤ 100) |
+| `max_duration_seconds` | number | — | Auto-end after this many seconds total, default 7200 (start only) (≥ 60, ≤ 28800) |
+| `since_minutes` | number | — | start only: deliver team activity from the last N minutes as backlog on the first poll (default: loop starts at now) (≥ 1, ≤ 1440) |
+
+### `team_project_task`
+
+Create, update, or list project tasks for your team. Tasks are human-visible with a full lifecycle: pending_approval → open → in_progress → blocked → resolution_proposal → resolved. Agent-submitted tasks require human approval by default (unless auto_approve is on). Use action=create to submit work, action=update to move status or add notes, action=list to see what needs attention.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `action` | "create" \| "update" \| "list" | ✓ | "create" a new task or sub-task, "update" status/notes on existing task, "list" tasks by status |
+| `name` | string | — | Task title — required for action=create |
+| `description` | string | — | Full description of what needs to be done (create) |
+| `parent_task_id` | number | — | Numeric id of parent task to create a sub-task (max 1 level deep) |
+| `task_id` | string | — | task_id string from create or list response — required for action=update |
+| `status` | "in_progress" \| "blocked" \| "resolution_proposal" | — | New lifecycle status — agents may set these three values (update) |
+| `note` | string | — | Short note recorded in task history (update) |
+| `blocked_reason` | string | — | Why progress is blocked — include when status=blocked (update) |
+| `resolution_notes` | string | — | What was done to solve the issue — include when status=resolution_proposal (update) |
+| `test_results` | string | — | Test output or pass/fail summary proving resolution — include when status=resolution_proposal (update) |
+| `status_filter` | "pending_approval" \| "open" \| "in_progress" \| "blocked" \| "resolution_proposal" \| "resolved" \| "rejected" \| "all" | — | Filter by status (list). Omit to return all non-resolved tasks. |
+
+### `team_roles`
+
+List current role assignments for your team. Use this to discover who is the Project Manager, Code Reviewer, etc. Returns each role with its description and assigned agent hostname (or null if unassigned). Roles are assigned by humans via the web dashboard.
+
+No parameters.

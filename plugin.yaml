@@ -1,6 +1,6 @@
 name: route6
-version: 0.1.5
-description: "Route6 (route6.me) — give your agent a real public IPv6 identity, DNS hostname, port forwarding, web fetch/search/scrape from a clean IP, and a private team mesh with coordination tools. All Route6 MCP tools auto-discovered from gw.route6.me; bundled usage skill (route6:route6). Free tier available."
+version: 0.1.6
+description: "Route6 (route6.me) — give your agent its own public IPv6 identity, hostname, port forwarding and webhook URLs, web fetch/search/scrape from its own IP, and a private team mesh with coordination tools. All 23 Route6 MCP tools auto-discovered from gw.route6.me, every one on every plan including Free; bundled usage skill (route6:route6)."
 author: Route6
 kind: standalone
 requires_env:
@@ -15,16 +15,11 @@ optional_env:
     description: "Per-tool-call timeout in seconds (default: 120)"
 provides_tools:
   - hostname_register
-  - identity_check_reputation
-  - identity_get
-  - identity_set_ipv6
-  - net_dns_resolve
-  - net_ping
-  - net_traceroute
+  - identity
+  - net
   - plan_upgrade
-  - port_forward_create
-  - port_forward_delete
-  - port_forward_list
+  - port_forward
+  - port_forward_secure
   - port_forward_tls
   - scrape
   - smtp_allowlist
