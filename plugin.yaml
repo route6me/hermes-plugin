@@ -1,5 +1,5 @@
 name: route6
-version: 0.1.6
+version: 0.1.7
 description: "Route6 (route6.me) — give your agent its own public IPv6 identity, hostname, port forwarding and webhook URLs, web fetch/search/scrape from its own IP, and a private team mesh with coordination tools. All 23 Route6 MCP tools auto-discovered from gw.route6.me, every one on every plan including Free; bundled usage skill (route6:route6)."
 author: Route6
 kind: standalone

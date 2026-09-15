@@ -509,7 +509,7 @@
     },
     {
       "name": "team_status",
-      "description": "Mesh health summary plus full peer list — peer addresses, hostnames, and online status. Replaces separate mesh_status and mesh_discover.",
+      "description": "Mesh health summary plus full peer list — peer addresses, hostnames, and online status.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -653,7 +653,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Capability name, e.g. \"web_scrape\" (register)"
+            "description": "Capability name, e.g. \"summarize\" (register)"
           },
           "version": {
             "type": "string",
@@ -731,7 +731,7 @@
           },
           "capability_ref": {
             "type": "string",
-            "description": "\"name@version\" e.g. \"web_scrape@1.0.0\" (submit/poll)"
+            "description": "\"name@version\" e.g. \"summarize@1.0.0\" (submit/poll)"
           },
           "payload": {
             "type": "string",

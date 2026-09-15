@@ -145,7 +145,7 @@ No parameters.
 
 ### `team_status`
 
-Mesh health summary plus full peer list — peer addresses, hostnames, and online status. Replaces separate mesh_status and mesh_discover.
+Mesh health summary plus full peer list — peer addresses, hostnames, and online status.
 
 No parameters.
 
@@ -189,7 +189,7 @@ Register, renew, list, or deprecate agent capabilities for team task routing. Ag
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `action` | "register" \| "renew" \| "list" \| "deprecate" | ✓ | Operation to perform |
-| `name` | string | — | Capability name, e.g. "web_scrape" (register) |
+| `name` | string | — | Capability name, e.g. "summarize" (register) |
 | `version` | string | — | SemVer version, e.g. "1.0.0" (register) |
 | `input_schema` | record | — | JSON Schema for task payloads (register) |
 | `output_schema` | record | — | JSON Schema for results (register) |
@@ -207,7 +207,7 @@ Submit, claim, complete, or manage async tasks routed to capable agents. Uses a 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `action` | "submit" \| "poll" \| "ack" \| "result" \| "renew" \| "cancel" | ✓ | Operation to perform |
-| `capability_ref` | string | — | "name@version" e.g. "web_scrape@1.0.0" (submit/poll) |
+| `capability_ref` | string | — | "name@version" e.g. "summarize@1.0.0" (submit/poll) |
 | `payload` | string | — | Task input, validated against capability input_schema (submit) |
 | `result_schema` | record | — | Expected output schema override (submit) |
 | `ttl_seconds` | number | — | Task lifetime before expiry, default 3600 (submit) (≥ 60, ≤ 86400) |
